@@ -1,0 +1,225 @@
+The Snake Game code consists of the following major components:
+
+•	SnakeApp class: This class represents the application and inherits from wxApp. It contains event handlers and game logic.
+
+  class SnakeApp : public wxApp {
+  private:
+      // Enum to represent the direction of the snake
+      enum Direction { UP, RIGHT, DOWN, LEFT };
+      // Constants for the game window dimensions and size of each cell
+      const int WIDTH = 800, HEIGHT = 600, SIZE = 20;
+      // Variables to track the current direction, snake body, game window, timer, and food position
+      Direction direction = DOWN;
+      std::vector<wxPoint> snake;
+      wxFrame* win;
+      wxTimer* timer;
+      wxPoint food = wxPoint();
+      // ...
+  public:
+      // …
+  };
+  
+  Here's an overview of the SnakeApp class:
+    	It defines an enumeration called Direction, which represents the possible directions of the snake: UP, RIGHT, DOWN, and LEFT.
+    	It declares the WIDTH, HEIGHT, and SIZE constants, which define the dimensions of the game window and the size of each cell.
+    	The class includes private member variables:
+    o	direction: Tracks the current direction of the snake.
+    o	snake: Stores the positions of the snake's body segments as wxPoint objects.
+    o	win: Represents the game window (wxFrame object).
+    o	timer: Manages the game timer (wxTimer object).
+    o	food: Stores the position of the food (wxPoint object).
+  
+•	onKeyDownEVT method: This method handles the wxEVT_KEY_DOWN event and updates the snake's direction based on the pressed arrow key.
+
+  void onKeyDownEVT(wxKeyEvent& evt) {
+      switch (evt.GetKeyCode()) {
+          case WXK_UP:
+              if (direction != DOWN) direction = UP;
+              break;
+          case WXK_RIGHT:
+              if (direction != LEFT) direction = RIGHT;
+              break;
+          case WXK_DOWN:
+              if (direction != UP) direction = DOWN;
+              break;
+          case WXK_LEFT:
+              if (direction != RIGHT) direction = LEFT;
+              break;
+          default:
+              break;
+      }
+  }
+  
+  Here's how it works:
+    	The method uses a switch statement to determine which arrow key was pressed by checking the key code obtained from evt.GetKeyCode().
+    	If the Up arrow key is pressed (WXK_UP), and the current direction is not DOWN, the direction is updated to UP.
+    	Similarly, if the Right arrow key is pressed (WXK_RIGHT) and the current direction is not LEFT, the direction is updated to RIGHT.
+    	If the Down arrow key is pressed (WXK_DOWN) and the current direction is not UP, the direction is updated to DOWN.
+    	If the Left arrow key is pressed (WXK_LEFT) and the current direction is not RIGHT, the direction is updated to LEFT.
+    	For any other key, the method does nothing (default case).
+  
+•	OnPaintEVT method: This method handles the wxEVT_PAINT event and paints the snake and food on the game window using a wxPaintDC object.
+
+  void OnPaintEVT(wxPaintEvent& evt) {
+      wxPaintDC dc(win);
+  
+      dc.SetBrush(wxBrush(wxColor(255, 0, 0)));
+      dc.DrawRectangle(wxRect(food.x, food.y, SIZE, SIZE));
+  
+      dc.SetBrush(wxBrush(wxColor(0, 255, 0)));
+      for (wxPoint &part : snake) {
+          dc.DrawRectangle(part.x, part.y, SIZE, SIZE);
+      }
+  }
+  
+  Here's an explanation of how it works:
+    	It creates a wxPaintDC object, dc, which represents the device context used for painting on the window.
+    	The dc.SetBrush() method sets the brush (color) for drawing the food rectangle. In this case, it's set to red (wxColor(255, 0, 0)).
+    	The dc.DrawRectangle() method is used to draw the food rectangle on the game window. It takes the position (food.x, food.y) and size (SIZE, SIZE) of the food as parameters.
+    	The brush is set to green (wxColor(0, 255, 0)) to draw the snake's body segments.
+    	A loop iterates through each body segment of the snake (wxPoint objects in the snake vector), and dc.DrawRectangle() is called to draw each segment on the game window.
+    
+•	generateFood method: This method generates the food at random positions on the game window, ensuring it does not overlap with the snake.
+
+  void generateFood() {
+      srand(time(0));
+      food.x = (rand() % ((WIDTH - SIZE + 1) / SIZE)) * SIZE;
+      food.y = (rand() % ((HEIGHT - SIZE + 1) / SIZE)) * SIZE;
+  
+      for (wxPoint& part : snake) {
+          if (food.x == part.x && food.y == part.y) {
+              generateFood();
+              break;
+          }
+      }
+  }
+
+  Here's how it works:
+    	It uses the srand() function along with time(0) to seed the random number generator. This ensures that each time the program runs, the generated sequence of random numbers is different.
+    	The food.x and food.y coordinates are calculated using the following logic:
+    o	WIDTH - SIZE + 1 represents the maximum number of horizontal positions where the food can be placed without overlapping the right boundary.
+    o	HEIGHT - SIZE + 1 represents the maximum number of vertical positions where the food can be placed without overlapping the bottom boundary.
+    o	(rand() % ((WIDTH - SIZE + 1) / SIZE)) generates a random number between 0 and (WIDTH - SIZE + 1) / SIZE - 1. This determines the column position of the food.
+    o	The resulting column position is multiplied by SIZE to get the actual x-coordinate of the food.
+    o	The same logic is applied to calculate the y-coordinate.
+    	After calculating the position of the food, a loop iterates through each segment of the snake's body. If the food's position coincides with any part of the snake, the method recursively calls itself (generateFood()) to generate a new position for the food.
+
+•	OnTimerEVT method: This method handles the wxEVT_TIMER event and controls the movement of the snake by updating its position.
+
+  void OnTimerEVT(wxTimerEvent& evt) {
+      moveSnake();
+      win->Refresh();
+  }
+  
+  Here's an explanation of how it works:
+    	The method calls the moveSnake() function to update the position of the snake and handle collisions or food consumption.
+    	After updating the snake, it calls win->Refresh() to trigger a repaint of the game window. This ensures that any changes in the snake's position or the food are reflected on the screen.
+
+•	moveSnake method: This method moves the snake by updating the positions of its body segments and handles food collisions and game over conditions.
+
+  void moveSnake() {
+      wxPoint head = snake.front();
+  
+      switch (direction) {
+          case UP:
+              head.y -= SIZE;
+              break;
+          case RIGHT:
+              head.x += SIZE;
+              break;
+          case DOWN:
+              head.y += SIZE;
+              break;
+          case LEFT:
+              head.x -= SIZE;
+              break;
+      }
+  
+      snake.insert(snake.begin(), head);
+  
+      if (head.x == food.x && head.y == food.y) {
+          generateFood();
+      } else if (checkCollisions(head)) {
+          timer->Stop();
+  
+          wxMessageDialog* msgDialog = new wxMessageDialog(win, "Game Over");
+          msgDialog->ShowModal();
+          win->Close();
+      } else {
+          snake.pop_back();
+      }
+  }
+  
+  Here's a breakdown of its functionality:
+    	It retrieves the position of the snake's head using snake.front() and assigns it to the head variable.
+    	Based on the current direction of the snake, determined by the direction variable, the position of the head is updated. For example, if the direction is UP, the y-coordinate of the head is decreased by SIZE, resulting in an upward movement.
+    	The updated head position is inserted at the beginning of the snake vector using snake.insert(snake.begin(), head). This effectively moves the snake one step in the specified direction.
+    	If the snake's head coincides with the food (i.e., head.x == food.x and head.y == food.y), the generateFood() function is called to generate a new position for the food.
+    	If there is a collision detected between the snake's head and the walls or its own body (checked by the checkCollisions() method), the game is over. The timer is stopped, a message dialog displaying "Game Over" is shown, and the game window is closed.
+    	If there are no collisions and the snake did not consume the food, the tail of the snake is removed by calling snake.pop_back(). This ensures that the snake maintains its length and continues moving.
+
+•	checkCollisions method: This method checks for collisions between the snake's head and the walls or its own body.
+
+  bool checkCollisions(wxPoint &head) {
+      if (head.x < 0 || head.x >= WIDTH) {
+          return true;
+      } else if (head.y < 0 ||
+  
+   head.y >= HEIGHT) {
+          return true;
+      }
+  
+      for (int i = 1; i < snake.size(); i++) {
+          if (head.x == snake.at(i).x && head.y == snake.at(i).y) {
+              return true;
+          }
+      }
+  
+      return false;
+  }
+  
+  Here's how it works:
+    	It first checks if the snake's head is outside the game window boundaries. If the head.x coordinate is less than 0 or greater than or equal to WIDTH, or if the head.y coordinate is less than 0 or greater than or equal to HEIGHT, a collision is detected, and true is returned.
+    	If the snake's head is within the game window boundaries, the method iterates through each body segment of the snake, starting from index 1 (skipping the head). It compares the head.x and head.y coordinates with the coordinates of each body segment (snake.at(i).x and snake.at(i).y). If a collision is detected, true is returned.
+    	If no collisions are detected with the game boundaries or the snake's body, false is returned.
+
+•	OnInit method: This method initializes the game window, sets up event bindings, generates the initial food, starts the timer, and displays the window.
+
+  bool OnInit() {
+      win = new wxFrame(NULL, wxID_ANY, "Snake Game", wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_STYLE & ~wxRESIZE_BORDER & ~wxMAXIMIZE_BOX);
+      win->SetClientSize(WIDTH, HEIGHT);
+      win->SetBackgroundColour(wxColour(0, 0, 0));
+      win->Center();
+      win->Bind(wxEVT_KEY_DOWN, &SnakeApp::onKeyDownEVT, this);
+      win->Bind(wxEVT_PAINT, &SnakeApp::OnPaintEVT, this);
+  
+      generateFood();
+  
+      snake.push_back(wxPoint(0, 0));
+  
+      timer = new wxTimer(win);
+      win->Bind(wxEVT_TIMER, &SnakeApp::OnTimerEVT, this);
+      timer->Start(125);
+  
+      win->Show();
+      return true;
+  }
+  
+  Here's an explanation of its functionality:
+    	It creates a new wxFrame object, win, which represents the game window. The frame's title is set to "Snake Game", its size is set to WIDTH and HEIGHT, and its background color is set to black (wxColour(0, 0, 0)).
+    	The win frame is centered on the screen using `win->Center()`.
+    	Event bindings are established to handle key events (wxEVT_KEY_DOWN) and paint events (wxEVT_PAINT). The onKeyDownEVT() method handles key events, and the OnPaintEVT() method handles paint events.
+    	The generateFood() method is called to generate the initial position for the food.
+    	The initial position of the snake's head is set to (0, 0) using snake.push_back(wxPoint(0, 0)).
+    	A new wxTimer object, timer, is created, which will control the speed of the game. The wxEVT_TIMER event is bound to the OnTimerEVT() method, which will handle the timer event.
+    	The timer is started with a delay of 125 milliseconds using timer->Start(125).
+    	The game window is shown using win->Show().
+    	Finally, the method returns true to indicate a successful initialization of the application.
+
+Customization:
+
+The Snake Game can be customized by modifying certain variables and functions:
+  •	WIDTH and HEIGHT constants: These variables define the dimensions of the game window. Modify them to change the size of the game area.
+  •	SIZE constant: This variable determines the size of the snake's body segments and the food. Adjust its value to change the scale of the game objects.
+  •	timer->Start argument: The argument passed to the Start method of the wxTimer object determines the speed of the game. A smaller value makes the snake move faster.
+  •	Color settings: You can modify the RGB values used in the wxColor constructor to change the colors of the background, snake and the food.
